@@ -1,5 +1,3 @@
-'use server';
-
 import { FTRE_ShopHeader } from "@/components/shop/shop-header";
 import { FTRE_ProductGrid } from "@/components/shop/product-grid";
 import { collections, getCollectionProducts } from "@/lib/collections";
@@ -7,12 +5,12 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Metadata } from "next";
 
-interface PageProps {
+type Props = {
   params: { id: string };
-  searchParams: Record<string, string | string[] | undefined>;
-}
+  searchParams: { [key: string]: string | string[] | undefined };
+};
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const collection = collections.find(c => c.id === params.id);
   
   if (!collection) {
@@ -27,7 +25,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function CollectionPage({ params }: PageProps) {
+export default async function CollectionPage({
+  params,
+  searchParams,
+}: Props) {
   const collection = collections.find(c => c.id === params.id);
   
   if (!collection) {
