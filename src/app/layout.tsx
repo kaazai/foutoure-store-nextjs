@@ -3,6 +3,7 @@ import { Inter, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { CartProvider } from "@/context/cart-context";
+import { FTRE_CustomCursor } from "@/components/ui/custom-cursor";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const bebasNeue = Bebas_Neue({
@@ -30,7 +31,10 @@ export default function RootLayout({
           "min-h-screen bg-black font-sans antialiased"
         )}
       >
-        <CartProvider>{children}</CartProvider>
+        <CartProvider>
+          {children}
+          <FTRE_CustomCursor />
+        </CartProvider>
       </body>
     </html>
   );

@@ -1,37 +1,69 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { m, LazyMotion, domAnimation } from 'framer-motion';
 import gsap from 'gsap';
-import Image from 'next/image';
 import Link from 'next/link';
+import { FTRE_VideoBackground } from '@/components/ui/video-background';
 
 export default function IntroPage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Initial animation
-      gsap.from('.brand-letter', {
-        y: 100,
-        opacity: 0,
-        stagger: 0.1,
-        duration: 1,
-        ease: 'power4.out',
-      });
+    // Split animations into chunks for better performance
+    const letters = gsap.utils.toArray('.brand-letter');
+    const fadeElements = gsap.utils.toArray('.fade-in');
+    
+    // Create separate timelines for better performance
+    const lettersTl = gsap.timeline({
+      defaults: {
+        force3D: true,
+        lazy: true,
+      }
+    });
 
-      gsap.from('.fade-in', {
-        opacity: 0,
-        y: 20,
-        duration: 1,
-        delay: 1,
-        stagger: 0.2,
+    const fadeInTl = gsap.timeline({
+      defaults: {
+        force3D: true,
+        lazy: true,
+      }
+    });
+
+    // Optimize initial state
+    gsap.set([letters, fadeElements], { 
+      opacity: 0,
+      willChange: 'transform, opacity',
+      translateZ: 0,
+    });
+
+    // Split letter animations into chunks
+    const chunkSize = 3;
+    for (let i = 0; i < letters.length; i += chunkSize) {
+      const chunk = letters.slice(i, i + chunkSize);
+      lettersTl.to(chunk, {
+        y: 0,
+        opacity: 1,
+        duration: 0.6,
         ease: 'power2.out',
-      });
-    }, containerRef);
+        stagger: 0.05,
+        clearProps: 'willChange',
+      }, i * 0.1);
+    }
 
-    return () => ctx.revert();
+    // Stagger fade-in elements with less overlap
+    fadeInTl.to(fadeElements, {
+      opacity: 1,
+      y: 0,
+      duration: 0.5,
+      stagger: 0.1,
+      ease: 'power1.out',
+      clearProps: 'willChange',
+    }, 0.8);
+
+    return () => {
+      lettersTl.kill();
+      fadeInTl.kill();
+    };
   }, []);
 
   return (
@@ -39,56 +71,67 @@ export default function IntroPage() {
       ref={containerRef}
       className="relative min-h-screen w-full bg-black text-white overflow-hidden"
     >
-      {/* Background video/image with mask effect */}
-      <div className="absolute inset-0 z-0 mask">
-        <video
-          src="/videos/bg-texture.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          className="h-full w-full object-cover opacity-30"
-        />
-      </div>
+      <FTRE_VideoBackground />
 
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4">
-        {/* Brand name animation */}
+      <div 
+        className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4"
+        style={{ transform: 'translate3d(0, 0, 0)' }}
+      >
         <h1 
-          ref={textRef}
           className="text-8xl md:text-[12rem] font-heading tracking-wider text-center"
+          style={{ transform: 'translate3d(0, 0, 0)' }}
         >
           {'FOUTOURE'.split('').map((letter, index) => (
             <span
               key={index}
               className="brand-letter inline-block hover:text-red-500 transition-colors duration-300"
+              style={{ 
+                transform: `translate3d(0, ${100}px, 0)`,
+                opacity: 0,
+                display: 'inline-block',
+                willChange: 'transform, opacity',
+              }}
             >
               {letter}
             </span>
           ))}
         </h1>
 
-        {/* Tagline */}
-        <p className="fade-in mt-6 text-xl md:text-2xl text-gray-400 max-w-md text-center">
+        <p 
+          className="fade-in mt-6 text-xl md:text-2xl text-gray-400 max-w-md text-center"
+          style={{ 
+            transform: 'translate3d(0, 20px, 0)',
+            opacity: 0 
+          }}
+        >
           Elevate Your Street Style
         </p>
 
-        {/* CTA Button */}
-        <motion.div
-          className="fade-in mt-12"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Link
-            href="/shop"
-            className="px-8 py-4 bg-white text-black font-heading text-xl tracking-wider hover:bg-red-500 hover:text-white transition-colors duration-300"
+        <LazyMotion features={domAnimation} strict>
+          <m.div
+            className="fade-in mt-12"
+            initial={false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 1.2 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            ENTER STORE
-          </Link>
-        </motion.div>
+            <Link
+              href="/shop"
+              className="inline-block px-8 py-4 bg-white text-black font-heading text-xl tracking-wider hover:bg-red-500 hover:text-white transition-colors duration-300"
+            >
+              ENTER STORE
+            </Link>
+          </m.div>
+        </LazyMotion>
 
-        {/* Social proof */}
-        <div className="fade-in absolute bottom-8 flex gap-8 text-sm text-gray-500">
+        <div 
+          className="fade-in absolute bottom-8 flex gap-8 text-sm text-gray-500"
+          style={{ 
+            transform: 'translate3d(0, 20px, 0)',
+            opacity: 0
+          }}
+        >
           <span>EST. 2024</span>
           <span>PREMIUM STREETWEAR</span>
           <span>MADE IN JAPAN</span>

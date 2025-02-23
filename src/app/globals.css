@@ -146,6 +146,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    cursor: none;
   }
   body {
     @apply bg-background text-foreground;
@@ -153,6 +154,43 @@
   .font-heading {
     font-family: var(--font-bebas);
   }
+  
+  /* Keep cursor on interactive elements */
+  a, button, input, textarea, select {
+    cursor: none;
+    &:hover {
+      cursor: none;
+    }
+  }
+}
+
+/* Optimized animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.brand-letter.animate-in {
+  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.fade-in.animate-in {
+  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Hover effect for brand letters */
+.brand-letter {
+  transition: color 0.3s ease;
+}
+
+.brand-letter:hover {
+  color: theme('colors.red.500');
 }
 
 .mask {
