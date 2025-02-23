@@ -1,14 +1,33 @@
+'use server';
+
 import { FTRE_ShopHeader } from "@/components/shop/shop-header";
 import { FTRE_ProductGrid } from "@/components/shop/product-grid";
 import { collections, getCollectionProducts } from "@/lib/collections";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import { Metadata } from "next";
 
-export default async function CollectionPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+type Props = {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const collection = collections.find(c => c.id === params.id);
+  
+  if (!collection) {
+    return {
+      title: 'Collection Not Found | FOUTOURE',
+    };
+  }
+
+  return {
+    title: `${collection.name} | FOUTOURE Collections`,
+    description: collection.description,
+  };
+}
+
+export default async function CollectionPage({ params, searchParams }: Props) {
   const collection = collections.find(c => c.id === params.id);
   
   if (!collection) {
