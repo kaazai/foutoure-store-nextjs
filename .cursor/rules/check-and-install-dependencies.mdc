@@ -1,0 +1,34 @@
+---
+description: Automatically checks for and installs missing dependencies when libraries are requested in the prompt
+globs: 
+---
+When a user requests to use specific libraries (e.g., GSAP, Framer Motion, etc.):
+
+1. Check for the presence of the required libraries in the `package.json` file.
+2. If any dependency is missing, automatically run the appropriate command to install it using the package manager (npm, yarn, or pnpm).
+3. Notify the user that the dependencies were checked and installed if necessary.
+4. Proceed with the requested implementation only after the dependencies are properly installed.
+
+#### Example:
+
+**User Prompt:**  
+> Create a hero section using GSAP and Framer Motion.
+
+**AI Response (when dependencies are missing):**
+(📝rule:check-and-install-dependencies) Checking for dependencies: GSAP and Framer Motion...
+Missing dependencies detected. Installing now...
+
+📦 Running:
+npm install gsap framer-motion
+
+✅ Installation complete. Proceeding with hero section implementation...
+
+
+**AI Response (when dependencies are already installed):**
+(📝rule:check-and-install-dependencies) All required dependencies (GSAP, Framer Motion) are already installed. Proceeding with hero section implementation...
+
+
+### Notes:
+- The AI should first verify the dependencies listed in `package.json`.
+- If dependencies are missing, the installation will proceed using the appropriate package manager.
+- Once the dependencies are successfully installed, the implementation can proceed.

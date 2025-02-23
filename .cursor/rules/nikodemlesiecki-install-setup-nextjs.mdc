@@ -1,0 +1,31 @@
+---
+description: Install or setup or create Next.js app with Nikodem Lesiecki default setup
+globs: 
+---
+When I ask to setup project or install Next.js, I want you to run the following instructions sequentially.
+
+First check for the presence of package.json file and do not run if it is present.
+
+**Prefix the chat message with (📝rule:<rule name>) so the user knows that this rule is being applied.**
+
+## Step 1
+
+```bash
+mkdir temp; cd temp; npx create-next-app@latest . -y --typescript --tailwind --eslint --app --use-npm --src-dir --import-alias "@/*" -no --turbopack
+```
+
+## Step 2
+
+```bash
+cd .. && mv temp/* temp/.* . 2>/dev/null || true && rm -rf temp
+```
+
+## Step 3
+
+[install-shadcn.mdc](mdc:.cursor/rules/install-shadcn.mdc)
+
+## Step 4
+- Install Lucide React Icons
+- Install Sonner Toast
+
+
