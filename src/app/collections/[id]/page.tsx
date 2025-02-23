@@ -7,12 +7,12 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { Metadata } from "next";
 
-type Props = {
+interface PageProps {
   params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
+  searchParams: Record<string, string | string[] | undefined>;
+}
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const collection = collections.find(c => c.id === params.id);
   
   if (!collection) {
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CollectionPage({ params, searchParams }: Props) {
+export default function CollectionPage({ params }: PageProps) {
   const collection = collections.find(c => c.id === params.id);
   
   if (!collection) {
