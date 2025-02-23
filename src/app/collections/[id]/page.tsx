@@ -4,13 +4,11 @@ import { collections, getCollectionProducts } from "@/lib/collections";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 
-interface CollectionPageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default function CollectionPage({ params }: CollectionPageProps) {
+export default async function CollectionPage({
+  params,
+}: {
+  params: { id: string }
+}) {
   const collection = collections.find(c => c.id === params.id);
   
   if (!collection) {
