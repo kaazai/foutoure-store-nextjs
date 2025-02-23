@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default function CollectionPage({ params }: PageProps) {
+export default async function CollectionPage({ params }: PageProps) {
   const collection = collections.find(c => c.id === params.id);
   
   if (!collection) {
