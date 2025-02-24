@@ -67,11 +67,15 @@ export default function CollectionProductsPage() {
       // Fetch available products (not in this collection)
       const { data: allProducts, error: allProductsError } = await supabase
         .from('products')
-        .select('*')
-        .not('id', 'in', `(${productIds.length > 0 ? productIds.join(',') : '0'})`);
+        .select('*');
 
       if (allProductsError) throw allProductsError;
-      setAvailableProducts(allProducts || []);
+      
+      // Filter out products that are already in the collection
+      const availableProductsFiltered = (allProducts || []).filter(
+        product => !productIds.includes(product.id)
+      );
+      setAvailableProducts(availableProductsFiltered);
 
     } catch (error) {
       handleError(error);
