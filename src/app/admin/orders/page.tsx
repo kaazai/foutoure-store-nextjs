@@ -9,10 +9,11 @@ import { FTRE_ErrorToast } from '@/components/ui/error-toast';
 import Link from 'next/link';
 
 type Order = Database['public']['Tables']['orders']['Row'];
-type OrderWithProfile = Order & { profiles: { email: string } };
+type OrderWithProfile = Order;
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithProfile[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<OrderWithProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const supabase = createClient();
@@ -25,20 +26,19 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('orders')
-        .select(`
-          *,
-          profiles (
-            email
-          )
-        `)
+        .select(`*`)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (fetchError) {
+        throw new Error('Failed to fetch orders: ' + fetchError.message);
+      }
+
       setOrders(data || []);
-    } catch (error) {
-      handleError(error);
+      setFilteredOrders(data || []);
+    } catch (err) {
+      handleError(err);
     } finally {
       setIsLoading(false);
     }
@@ -47,15 +47,18 @@ export default function OrdersPage() {
   const updateOrderStatus = async (orderId: string, status: 'pending' | 'processing' | 'completed' | 'cancelled') => {
     try {
       setIsActionLoading(true);
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('orders')
         .update({ status })
         .eq('id', orderId);
 
-      if (error) throw error;
+      if (updateError) {
+        throw new Error('Failed to update order status: ' + updateError.message);
+      }
+
       await fetchOrders();
-    } catch (error) {
-      handleError(error);
+    } catch (err) {
+      handleError(err);
     } finally {
       setIsActionLoading(false);
     }
@@ -111,7 +114,7 @@ export default function OrdersPage() {
                   #{order.id.slice(0, 8)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {order.profiles?.email}
+                  {order.user_id ? order.user_id.substring(0, 8) : 'Guest'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   ${order.total_amount}

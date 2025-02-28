@@ -1,19 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FTRE_ProductGrid } from "@/components/shop/product-grid";
 import { FTRE_ShopHeader } from "@/components/shop/shop-header";
-import { Search } from 'lucide-react';
-import { FilterOptions } from '@/lib/products';
+import { Search, Loader2 } from 'lucide-react';
+import { FilterOptions, getProducts, type Product } from '@/lib/products';
 
 export default function ShopPage() {
   const [filters, setFilters] = useState<FilterOptions>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProducts() {
+      setIsLoading(true);
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (error) {
+        console.error('Failed to load products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadProducts();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setFilters(prev => ({ ...prev, search: searchQuery }));
   };
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-black text-white">
+        <FTRE_ShopHeader />
+        <div className="container mx-auto px-4 flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-white/50" />
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -92,7 +121,7 @@ export default function ShopPage() {
           )}
         </div>
 
-        <FTRE_ProductGrid filters={filters} />
+        <FTRE_ProductGrid filters={filters} products={products} />
       </div>
     </main>
   );

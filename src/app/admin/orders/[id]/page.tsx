@@ -3,24 +3,33 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Database } from '@/types/supabase';
-import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { useParams } from 'next/navigation';
-import Image from 'next/image';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useErrorHandler } from '@/hooks/use-error-handler';
 import { FTRE_ErrorToast } from '@/components/ui/error-toast';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 
 type Order = Database['public']['Tables']['orders']['Row'];
-type OrderItem = Database['public']['Tables']['order_items']['Row'];
-type Product = Database['public']['Tables']['products']['Row'];
-
 type OrderWithDetails = Order & {
-  profiles: { email: string };
-  order_items: (OrderItem & { products: Product })[];
+  profile: { email: string };
+  order_items: Array<{
+    id: string;
+    quantity: number;
+    price_at_time: number;
+    product: {
+      id: string;
+      name: string;
+      image: string;
+    };
+  }>;
+  notes?: string;
+  shipping_address: string;
+  billing_address: string;
 };
 
 export default function OrderDetailsPage() {
   const params = useParams();
+  const id = params.id as string;
   const [order, setOrder] = useState<OrderWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -29,32 +38,39 @@ export default function OrderDetailsPage() {
 
   useEffect(() => {
     fetchOrder();
-  }, [params.id]);
+  }, [id]);
 
   const fetchOrder = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('orders')
         .select(`
           *,
-          profiles (
+          profile:profiles (
             email
           ),
           order_items (
-            *,
-            products (
-              *
+            id,
+            quantity,
+            price_at_time,
+            product:products (
+              id,
+              name,
+              image
             )
           )
         `)
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
-      if (error) throw error;
+      if (fetchError) {
+        throw fetchError;
+      }
+
       setOrder(data);
-    } catch (error) {
-      handleError(error);
+    } catch (err) {
+      handleError(err);
     } finally {
       setIsLoading(false);
     }
@@ -63,15 +79,18 @@ export default function OrderDetailsPage() {
   const updateOrderStatus = async (status: 'pending' | 'processing' | 'completed' | 'cancelled') => {
     try {
       setIsActionLoading(true);
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('orders')
         .update({ status })
-        .eq('id', params.id);
+        .eq('id', id);
 
-      if (error) throw error;
+      if (updateError) {
+        throw updateError;
+      }
+
       await fetchOrder();
-    } catch (error) {
-      handleError(error);
+    } catch (err) {
+      handleError(err);
     } finally {
       setIsActionLoading(false);
     }
@@ -88,7 +107,7 @@ export default function OrderDetailsPage() {
   if (!order) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-white/50">Order not found</div>
+        <p className="text-white/50">Order not found</p>
       </div>
     );
   }
@@ -96,7 +115,7 @@ export default function OrderDetailsPage() {
   return (
     <div>
       {error && <FTRE_ErrorToast message={error.message} onClose={clearError} />}
-      
+
       <div className="flex items-center gap-4 mb-8">
         <Link
           href="/admin/orders"
@@ -106,79 +125,109 @@ export default function OrderDetailsPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-heading">Order #{order.id.slice(0, 8)}</h1>
-          <p className="text-sm text-white/60">View order details</p>
+          <p className="text-sm text-white/60">
+            Placed on {new Date(order.created_at).toLocaleDateString()}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Order Info */}
+      <div className="grid grid-cols-3 gap-8">
+        {/* Order Summary */}
         <div className="col-span-2 space-y-8">
-          <div className="bg-white/5 rounded-lg p-6">
-            <h2 className="text-lg font-heading mb-4">Order Items</h2>
-            <div className="space-y-4">
-              {order.order_items.map((item) => (
-                <div key={item.id} className="flex gap-4">
-                  <div className="relative w-20 h-20 bg-white/5">
-                    {item.products.image && (
-                      <Image
-                        src={item.products.image}
-                        alt={item.products.name}
-                        fill
-                        className="object-cover"
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium">{item.products.name}</h3>
-                    <p className="text-sm text-white/60">
-                      Quantity: {item.quantity} × ${item.products.price}
-                    </p>
-                    <p className="text-sm font-medium">
-                      Total: ${(item.quantity * item.products.price).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+          {/* Order Items */}
+          <div className="bg-white/5 rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/10">
+              <h2 className="font-heading">Order Items</h2>
             </div>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Unit Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {order.order_items.map((item) => (
+                  <tr key={item.id} className="hover:bg-white/5">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white/5 rounded overflow-hidden">
+                          {item.product.image && (
+                            <img
+                              src={item.product.image}
+                              alt={item.product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <Link
+                            href={`/admin/products/${item.product.id}`}
+                            className="hover:text-red-500 transition-colors"
+                          >
+                            {item.product.name}
+                          </Link>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {item.quantity}
+                    </td>
+                    <td className="px-6 py-4">
+                      ${item.price_at_time}
+                    </td>
+                    <td className="px-6 py-4">
+                      ${(item.quantity * item.price_at_time).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-white/5">
+                  <td colSpan={3} className="px-6 py-4 text-right font-medium">
+                    Total Amount:
+                  </td>
+                  <td className="px-6 py-4 font-medium">
+                    ${order.total_amount}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+
+          {/* Customer Notes */}
+          {order.notes && (
+            <div className="bg-white/5 rounded-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-white/10">
+                <h2 className="font-heading">Customer Notes</h2>
+              </div>
+              <div className="px-6 py-4">
+                <p className="text-white/80">{order.notes}</p>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Order Summary */}
+        {/* Order Details Sidebar */}
         <div className="space-y-8">
-          <div className="bg-white/5 rounded-lg p-6">
-            <h2 className="text-lg font-heading mb-4">Order Summary</h2>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-white/60">Status</span>
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                  ${order.status === 'completed' ? 'bg-green-100 text-green-800' : ''}
-                  ${order.status === 'processing' ? 'bg-blue-100 text-blue-800' : ''}
-                  ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-                  ${order.status === 'cancelled' ? 'bg-red-100 text-red-800' : ''}
-                `}>
-                  {order.status}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/60">Customer</span>
-                <span>{order.profiles.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/60">Date</span>
-                <span>{new Date(order.created_at).toLocaleDateString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/60">Total Amount</span>
-                <span className="font-medium">${order.total_amount}</span>
-              </div>
+          {/* Status */}
+          <div className="bg-white/5 rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/10">
+              <h2 className="font-heading">Order Status</h2>
             </div>
-
-            <div className="mt-6">
-              <label className="block text-sm text-white/60 mb-2">Update Status</label>
+            <div className="p-6">
               <select
                 value={order.status}
                 onChange={(e) => updateOrderStatus(e.target.value as any)}
-                className="w-full bg-transparent border border-white/10 rounded px-3 py-2"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-white/20"
                 disabled={isActionLoading}
               >
                 <option value="pending">Pending</option>
@@ -186,6 +235,27 @@ export default function OrderDetailsPage() {
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
+            </div>
+          </div>
+
+          {/* Customer Info */}
+          <div className="bg-white/5 rounded-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-white/10">
+              <h2 className="font-heading">Customer Information</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-sm text-white/60">Email</p>
+                <p>{order.profile.email}</p>
+              </div>
+              <div>
+                <p className="text-sm text-white/60">Shipping Address</p>
+                <p>{order.shipping_address}</p>
+              </div>
+              <div>
+                <p className="text-sm text-white/60">Billing Address</p>
+                <p>{order.billing_address}</p>
+              </div>
             </div>
           </div>
         </div>

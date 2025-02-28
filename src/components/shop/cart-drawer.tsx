@@ -10,16 +10,6 @@ type CartDrawerProps = {
   onClose: () => void;
 };
 
-const getProductImage = (id: number) => {
-  const imageMap: Record<number, string> = {
-    1: '/images/products/hoodie-1.jpg',
-    2: '/images/products/pants-1.jpg',
-    3: '/images/products/tee-1.jpg',
-    4: '/images/products/jacket-1.jpg',
-  };
-  return imageMap[id];
-};
-
 export function FTRE_CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { state, removeItem, updateQuantity } = useCart();
 
@@ -67,7 +57,7 @@ export function FTRE_CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   <div key={`${item.id}-${item.size}`} className="flex gap-4 pb-4 border-b border-white/10">
                     <div className="relative w-24 aspect-[3/4] bg-gray-900">
                       <Image
-                        src={getProductImage(item.id)}
+                        src={item.image || `/images/placeholder.jpg`}
                         alt={item.name}
                         fill
                         className="object-cover"
@@ -103,7 +93,7 @@ export function FTRE_CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             <Plus className="h-4 w-4" />
                           </button>
                         </div>
-                        <p className="font-heading">${item.price * item.quantity}</p>
+                        <p className="font-heading">${(item.price * item.quantity).toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
@@ -117,7 +107,7 @@ export function FTRE_CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <div className="border-t border-white/10 p-4 space-y-4">
               <div className="flex justify-between items-center">
                 <span className="font-heading text-lg">Total</span>
-                <span className="font-heading text-lg">${state.total}</span>
+                <span className="font-heading text-lg">${state.total.toFixed(2)}</span>
               </div>
               <button className="w-full bg-white text-black py-4 font-heading hover:bg-red-500 hover:text-white transition-colors">
                 CHECKOUT

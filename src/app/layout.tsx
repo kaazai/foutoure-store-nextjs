@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { CartProvider } from "@/context/cart-context";
 import { FTRE_CustomCursor } from "@/components/ui/custom-cursor";
+import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const bebasNeue = Bebas_Neue({
@@ -34,6 +35,7 @@ export default function RootLayout({
         <CartProvider>
           {children}
           <FTRE_CustomCursor />
+          <Toaster />
         </CartProvider>
       </body>
     </html>

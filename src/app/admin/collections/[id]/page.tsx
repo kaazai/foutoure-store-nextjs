@@ -12,6 +12,7 @@ type Collection = Database['public']['Tables']['collections']['Row'];
 
 export default function EditCollectionPage() {
   const params = useParams();
+  const id = params.id as string;
   const [collection, setCollection] = useState<Collection | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
@@ -22,7 +23,7 @@ export default function EditCollectionPage() {
         const { data, error } = await supabase
           .from('collections')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', id)
           .single();
 
         if (error) throw error;
@@ -35,7 +36,7 @@ export default function EditCollectionPage() {
     };
 
     fetchCollection();
-  }, [params.id]);
+  }, [id]);
 
   if (isLoading) {
     return (

@@ -15,6 +15,7 @@ type Product = Database['public']['Tables']['products']['Row'];
 
 export default function CollectionProductsPage() {
   const params = useParams();
+  const id = params.id as string;
   const [collection, setCollection] = useState<Collection | null>(null);
   const [collectionProducts, setCollectionProducts] = useState<Product[]>([]);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
@@ -26,7 +27,7 @@ export default function CollectionProductsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [params.id]);
+  }, [id]);
 
   const fetchData = async () => {
     try {
@@ -36,7 +37,7 @@ export default function CollectionProductsPage() {
       const { data: collectionData, error: collectionError } = await supabase
         .from('collections')
         .select('*')
-        .eq('id', params.id)
+        .eq('id', id)
         .single();
 
       if (collectionError) throw collectionError;
@@ -46,7 +47,7 @@ export default function CollectionProductsPage() {
       const { data: productsInCollection, error: productsError } = await supabase
         .from('collection_products')
         .select('product_id')
-        .eq('collection_id', params.id);
+        .eq('collection_id', id);
 
       if (productsError) throw productsError;
 
@@ -90,7 +91,7 @@ export default function CollectionProductsPage() {
       const { error } = await supabase
         .from('collection_products')
         .insert({
-          collection_id: params.id,
+          collection_id: id,
           product_id: productId,
         });
 
@@ -112,7 +113,7 @@ export default function CollectionProductsPage() {
       const { error } = await supabase
         .from('collection_products')
         .delete()
-        .eq('collection_id', params.id)
+        .eq('collection_id', id)
         .eq('product_id', productId);
 
       if (error) throw error;

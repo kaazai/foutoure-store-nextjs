@@ -15,6 +15,10 @@ export function createClient() {
   );
 }
 
+export function resetClient() {
+  // This function is no longer used in the new implementation
+}
+
 export type ProductRow = Database['public']['Tables']['products']['Row'];
 export type CollectionRow = Database['public']['Tables']['collections']['Row'];
 export type CollectionProductRow = Database['public']['Tables']['collection_products']['Row'];

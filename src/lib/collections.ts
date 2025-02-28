@@ -1,47 +1,76 @@
-import { Product, products } from './products';
+import { createClient } from '@/lib/supabase/client';
+import type { Database } from '@/types/supabase';
+import { Product, getProducts } from './products';
 
-export type Collection = {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  featured: boolean;
-  productIds: number[];
-};
+export type Collection = Database['public']['Tables']['collections']['Row'];
 
-export const collections: Collection[] = [
-  {
-    id: 'tech-essentials',
-    name: 'Tech Essentials',
-    description: 'Performance-driven essentials for the modern urbanite. Technical fabrics meet minimalist design.',
-    image: '/images/collections/tech-essentials.jpg',
-    featured: true,
-    productIds: [1, 4], // Urban Tech Hoodie, Tactical Jacket
-  },
-  {
-    id: 'minimal-basics',
-    name: 'Minimal Basics',
-    description: 'Timeless pieces with a contemporary twist. Clean lines and versatile styling options.',
-    image: '/images/collections/minimal-basics.jpg',
-    featured: true,
-    productIds: [3], // Oversized Tee
-  },
-  {
-    id: 'urban-utility',
-    name: 'Urban Utility',
-    description: 'Functional streetwear with a purpose. Designed for both style and practicality.',
-    image: '/images/collections/urban-utility.jpg',
-    featured: false,
-    productIds: [2, 4], // Cargo Tech Pants, Tactical Jacket
-  },
-];
-
-export function getCollectionProducts(collectionId: string): Product[] {
-  const collection = collections.find(c => c.id === collectionId);
-  if (!collection) return [];
-  return products.filter(product => collection.productIds.includes(product.id));
+export async function getCollections(): Promise<Collection[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('collections')
+    .select('*')
+    .eq('status', 'published')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error fetching collections:', error);
+    return [];
+  }
+  
+  return data || [];
 }
 
-export function getFeaturedCollections(): Collection[] {
-  return collections.filter(collection => collection.featured);
+export async function getCollection(id: string): Promise<Collection | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('collections')
+    .select('*')
+    .eq('id', id)
+    .eq('status', 'published')
+    .single();
+  
+  if (error) {
+    console.error(`Error fetching collection ${id}:`, error);
+    return null;
+  }
+  
+  return data;
+}
+
+export async function getCollectionProducts(collectionId: string): Promise<Product[]> {
+  const supabase = createClient();
+  
+  // First get the product IDs in this collection
+  const { data: collectionProductsData, error: collectionProductsError } = await supabase
+    .from('collection_products')
+    .select('product_id')
+    .eq('collection_id', collectionId);
+  
+  if (collectionProductsError || !collectionProductsData.length) {
+    console.error(`Error fetching product IDs for collection ${collectionId}:`, collectionProductsError);
+    return [];
+  }
+  
+  const productIds = collectionProductsData.map(item => item.product_id);
+  
+  // Then fetch the actual products
+  const { data: productsData, error: productsError } = await supabase
+    .from('products')
+    .select('*')
+    .in('id', productIds)
+    .eq('status', 'published');
+  
+  if (productsError) {
+    console.error(`Error fetching products for collection ${collectionId}:`, productsError);
+    return [];
+  }
+  
+  return productsData || [];
+}
+
+export async function getFeaturedCollections(): Promise<Collection[]> {
+  const collections = await getCollections();
+  // For now, return all published collections as featured
+  // You can add a 'featured' field to the collections table later if needed
+  return collections;
 } 

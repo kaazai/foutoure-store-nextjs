@@ -10,6 +10,7 @@ import { useParams } from 'next/navigation';
 
 export default function EditProductPage() {
   const params = useParams();
+  const id = params.id as string;
   const [product, setProduct] = useState<ProductRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
@@ -20,7 +21,7 @@ export default function EditProductPage() {
         const { data, error } = await supabase
           .from('products')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', id)
           .single();
 
         if (error) throw error;
@@ -33,7 +34,7 @@ export default function EditProductPage() {
     };
 
     fetchProduct();
-  }, [params.id]);
+  }, [id]);
 
   if (isLoading) {
     return (

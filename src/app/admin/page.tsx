@@ -2,73 +2,127 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Package, ShoppingBag, Users, TrendingUp } from 'lucide-react';
+import { Package, ShoppingBag, Users, TrendingUp, DollarSign } from 'lucide-react';
 import Link from 'next/link';
+import { FTRE_ErrorToast } from '@/components/ui/error-toast';
+import { FTRE_AnalyticsCard } from '@/components/admin/analytics-card';
 
-type DashboardStats = {
-  totalProducts: number;
-  totalOrders: number;
+interface DashboardStats {
   totalRevenue: number;
-  recentProducts: any[];
-  recentOrders: any[];
-};
+  totalOrders: number;
+  totalCustomers: number;
+  averageOrderValue: number;
+  topProducts: {
+    id: string;
+    name: string;
+    total_sold: number;
+    revenue: number;
+  }[];
+  revenueData: {
+    labels: string[];
+    datasets: {
+      label: string;
+      data: number[];
+      borderColor: string;
+      backgroundColor: string;
+    }[];
+  };
+  ordersData: {
+    labels: string[];
+    datasets: {
+      label: string;
+      data: number[];
+      borderColor: string;
+      backgroundColor: string;
+    }[];
+  };
+}
+
+interface OrderItem {
+  product_id: string;
+  products: {
+    id: string;
+    name: string;
+  };
+  quantity: number;
+  price_at_time: number;
+}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
-    totalProducts: 0,
-    totalOrders: 0,
     totalRevenue: 0,
-    recentProducts: [],
-    recentOrders: [],
+    totalOrders: 0,
+    totalCustomers: 0,
+    averageOrderValue: 0,
+    topProducts: [],
+    revenueData: {
+      labels: [],
+      datasets: [],
+    },
+    ordersData: {
+      labels: [],
+      datasets: [],
+    },
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchDashboardStats = async () => {
       try {
-        // Fetch total products
-        const { count: productsCount } = await supabase
-          .from('products')
-          .select('*', { count: 'exact', head: true });
+        setIsLoading(true);
+        
+        // Combine queries into a single transaction
+        const { data: results, error } = await supabase.rpc('get_dashboard_stats');
+        
+        if (error) throw error;
 
-        // Fetch total orders and revenue
-        const { data: orders, count: ordersCount } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact' });
+        if (!results) {
+          throw new Error('Failed to fetch dashboard statistics');
+        }
 
-        const totalRevenue = orders?.reduce((sum, order) => sum + order.total, 0) || 0;
-
-        // Fetch recent products
-        const { data: recentProducts } = await supabase
-          .from('products')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        // Fetch recent orders
-        const { data: recentOrders } = await supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5);
+        const {
+          total_revenue,
+          total_orders,
+          total_customers,
+          top_products,
+          revenue_data,
+          orders_data
+        } = results;
 
         setStats({
-          totalProducts: productsCount || 0,
-          totalOrders: ordersCount || 0,
-          totalRevenue,
-          recentProducts: recentProducts || [],
-          recentOrders: recentOrders || [],
+          totalRevenue: total_revenue || 0,
+          totalOrders: total_orders || 0,
+          totalCustomers: total_customers || 0,
+          averageOrderValue: total_orders ? total_revenue / total_orders : 0,
+          topProducts: top_products || [],
+          revenueData: revenue_data || {
+            labels: [],
+            datasets: [],
+          },
+          ordersData: orders_data || {
+            labels: [],
+            datasets: [],
+          },
         });
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        setError(error as Error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchStats();
+    fetchDashboardStats();
   }, []);
+
+  const handleError = (error: Error) => {
+    setError(error);
+  };
+
+  const clearError = () => {
+    setError(null);
+  };
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -76,26 +130,31 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-heading">Dashboard</h1>
+      {error && <FTRE_ErrorToast message={error.message} onClose={clearError} />}
+      
+      <div>
+        <h1 className="text-2xl font-heading">Dashboard</h1>
+        <p className="text-sm text-white/60">Overview of your store's performance</p>
+      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-4 gap-8">
         <div className="bg-white/5 border border-white/10 rounded-lg p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-500/10 text-blue-500 rounded-lg">
-              <Package className="h-6 w-6" />
+            <div className="p-3 bg-red-500/10 rounded-lg">
+              <DollarSign className="h-6 w-6 text-red-500" />
             </div>
             <div>
-              <p className="text-sm text-white/60">Total Products</p>
-              <p className="text-2xl font-heading">{stats.totalProducts}</p>
+              <p className="text-sm text-white/60">Total Revenue</p>
+              <p className="text-2xl font-heading">${stats.totalRevenue.toFixed(2)}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white/5 border border-white/10 rounded-lg p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-500/10 text-green-500 rounded-lg">
-              <ShoppingBag className="h-6 w-6" />
+            <div className="p-3 bg-blue-500/10 rounded-lg">
+              <ShoppingBag className="h-6 w-6 text-blue-500" />
             </div>
             <div>
               <p className="text-sm text-white/60">Total Orders</p>
@@ -106,99 +165,55 @@ export default function AdminDashboard() {
 
         <div className="bg-white/5 border border-white/10 rounded-lg p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-500/10 text-red-500 rounded-lg">
-              <TrendingUp className="h-6 w-6" />
+            <div className="p-3 bg-green-500/10 rounded-lg">
+              <Users className="h-6 w-6 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-white/60">Total Revenue</p>
-              <p className="text-2xl font-heading">${stats.totalRevenue}</p>
+              <p className="text-sm text-white/60">Total Customers</p>
+              <p className="text-2xl font-heading">{stats.totalCustomers}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-500/10 rounded-lg">
+              <DollarSign className="h-6 w-6 text-purple-500" />
+            </div>
+            <div>
+              <p className="text-sm text-white/60">Avg. Order Value</p>
+              <p className="text-2xl font-heading">${stats.averageOrderValue.toFixed(2)}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Products */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-heading">Recent Products</h2>
-            <Link
-              href="/admin/products"
-              className="text-sm text-white/60 hover:text-white transition-colors"
-            >
-              View All
-            </Link>
-          </div>
-          <div className="space-y-4">
-            {stats.recentProducts.map((product) => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between py-2 border-b border-white/10 last:border-0"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/10 rounded">
-                    {product.image && (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover rounded"
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium">{product.name}</p>
-                    <p className="text-sm text-white/60">${product.price}</p>
-                  </div>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
-                    product.status === 'published'
-                      ? 'bg-green-500/20 text-green-500'
-                      : 'bg-yellow-500/20 text-yellow-500'
-                  }`}
-                >
-                  {product.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Charts */}
+      <div className="grid grid-cols-2 gap-8">
+        <FTRE_AnalyticsCard
+          title="Revenue (Last 7 Days)"
+          data={stats.revenueData}
+        />
+        <FTRE_AnalyticsCard
+          title="Orders (Last 7 Days)"
+          data={stats.ordersData}
+        />
+      </div>
 
-        {/* Recent Orders */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-heading">Recent Orders</h2>
-            <Link
-              href="/admin/orders"
-              className="text-sm text-white/60 hover:text-white transition-colors"
-            >
-              View All
-            </Link>
-          </div>
-          <div className="space-y-4">
-            {stats.recentOrders.map((order) => (
-              <div
-                key={order.id}
-                className="flex items-center justify-between py-2 border-b border-white/10 last:border-0"
-              >
+      {/* Top Products */}
+      <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-white/10">
+          <h2 className="font-heading">Top Selling Products</h2>
+        </div>
+        <div className="p-6">
+          <div className="divide-y divide-white/10">
+            {stats.topProducts.map((product) => (
+              <div key={product.id} className="py-4 flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Order #{order.id}</p>
-                  <p className="text-sm text-white/60">${order.total}</p>
+                  <p className="font-medium">{product.name}</p>
+                  <p className="text-sm text-white/60">{product.total_sold} units sold</p>
                 </div>
-                <span
-                  className={`px-2 py-1 text-xs rounded ${
-                    order.status === 'completed'
-                      ? 'bg-green-500/20 text-green-500'
-                      : order.status === 'processing'
-                      ? 'bg-blue-500/20 text-blue-500'
-                      : order.status === 'cancelled'
-                      ? 'bg-red-500/20 text-red-500'
-                      : 'bg-yellow-500/20 text-yellow-500'
-                  }`}
-                >
-                  {order.status}
-                </span>
+                <p className="font-heading">${product.revenue.toFixed(2)}</p>
               </div>
             ))}
           </div>

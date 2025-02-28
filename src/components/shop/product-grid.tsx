@@ -9,7 +9,7 @@ type ProductGridProps = {
   products?: Product[];
 };
 
-export function FTRE_ProductGrid({ filters = {}, products: initialProducts }: ProductGridProps) {
+export function FTRE_ProductGrid({ filters = {}, products: initialProducts = [] }: ProductGridProps) {
   const filteredProducts = filterProducts(filters, initialProducts);
 
   return (
@@ -27,7 +27,7 @@ export function FTRE_ProductGrid({ filters = {}, products: initialProducts }: Pr
           >
             <div className="relative aspect-[3/4] bg-gray-900">
               <Image
-                src={product.image}
+                src={product.image || '/images/placeholder.jpg'}
                 alt={product.name}
                 fill
                 className="object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all duration-300"
@@ -35,7 +35,7 @@ export function FTRE_ProductGrid({ filters = {}, products: initialProducts }: Pr
             </div>
             <div className="mt-4 flex justify-between items-baseline">
               <h3 className="font-heading text-lg">{product.name}</h3>
-              <p className="text-sm text-gray-400">${product.price}</p>
+              <p className="text-sm text-gray-400">${product.price.toFixed(2)}</p>
             </div>
           </Link>
         ))

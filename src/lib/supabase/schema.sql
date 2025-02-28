@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS public.collection_products (
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   status TEXT DEFAULT 'pending',
   total_amount DECIMAL(10,2) NOT NULL,
   shipping_address JSONB,
@@ -381,4 +382,149 @@ CREATE TRIGGER update_orders_updated_at
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column(); 
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- Create function to handle new user profiles
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, role)
+  VALUES (new.id, new.email, 'user');
+  
+  -- Update any existing orders for this user to link to the new profile
+  UPDATE public.orders 
+  SET profile_id = new.id 
+  WHERE user_id = new.id;
+  
+  RETURN new;
+END;
+$$ language 'plpgsql';
+
+-- Create trigger for new user profiles
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- Create get_dashboard_stats function
+CREATE OR REPLACE FUNCTION public.get_dashboard_stats()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  result jsonb;
+BEGIN
+  WITH revenue_stats AS (
+    SELECT 
+      COALESCE(SUM(total_amount), 0) as total_revenue,
+      COUNT(*) as total_orders
+    FROM orders
+    WHERE status = 'completed'
+  ),
+  customer_stats AS (
+    SELECT COUNT(*) as total_customers
+    FROM profiles
+  ),
+  top_products AS (
+    SELECT 
+      p.id,
+      p.name,
+      p.image,
+      COUNT(oi.id) as total_sold,
+      SUM(oi.price_at_time * oi.quantity) as total_revenue
+    FROM products p
+    LEFT JOIN order_items oi ON p.id = oi.product_id
+    LEFT JOIN orders o ON oi.order_id = o.id
+    WHERE o.status = 'completed'
+    GROUP BY p.id, p.name, p.image
+    ORDER BY total_revenue DESC NULLS LAST
+    LIMIT 5
+  ),
+  daily_revenue AS (
+    SELECT 
+      date_trunc('day', created_at)::date as date,
+      COALESCE(SUM(total_amount), 0) as revenue
+    FROM orders
+    WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
+    AND status = 'completed'
+    GROUP BY date_trunc('day', created_at)::date
+    ORDER BY date
+  ),
+  daily_orders AS (
+    SELECT 
+      date_trunc('day', created_at)::date as date,
+      COUNT(*) as order_count
+    FROM orders
+    WHERE created_at >= CURRENT_DATE - INTERVAL '6 days'
+    GROUP BY date_trunc('day', created_at)::date
+    ORDER BY date
+  ),
+  dates AS (
+    SELECT generate_series(
+      CURRENT_DATE - INTERVAL '6 days',
+      CURRENT_DATE,
+      '1 day'
+    )::date as date
+  )
+  SELECT 
+    jsonb_build_object(
+      'total_revenue', (SELECT total_revenue FROM revenue_stats),
+      'total_orders', (SELECT total_orders FROM revenue_stats),
+      'total_customers', (SELECT total_customers FROM customer_stats),
+      'top_products', (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', id,
+            'name', name,
+            'image', image,
+            'total_sold', total_sold,
+            'total_revenue', total_revenue
+          )
+        )
+        FROM top_products
+      ),
+      'revenue_data', jsonb_build_object(
+        'labels', (
+          SELECT jsonb_agg(to_char(d.date, 'Mon DD'))
+          FROM dates d
+        ),
+        'datasets', jsonb_build_array(
+          jsonb_build_object(
+            'label', 'Revenue',
+            'data', (
+              SELECT jsonb_agg(COALESCE(r.revenue, 0))
+              FROM dates d
+              LEFT JOIN daily_revenue r ON r.date = d.date
+            ),
+            'borderColor', 'rgb(239, 68, 68)',
+            'backgroundColor', 'rgba(239, 68, 68, 0.1)'
+          )
+        )
+      ),
+      'orders_data', jsonb_build_object(
+        'labels', (
+          SELECT jsonb_agg(to_char(d.date, 'Mon DD'))
+          FROM dates d
+        ),
+        'datasets', jsonb_build_array(
+          jsonb_build_object(
+            'label', 'Orders',
+            'data', (
+              SELECT jsonb_agg(COALESCE(o.order_count, 0))
+              FROM dates d
+              LEFT JOIN daily_orders o ON o.date = d.date
+            ),
+            'borderColor', 'rgb(59, 130, 246)',
+            'backgroundColor', 'rgba(59, 130, 246, 0.1)'
+          )
+        )
+      )
+    ) INTO result;
+
+  RETURN result;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION public.get_dashboard_stats() TO authenticated; 

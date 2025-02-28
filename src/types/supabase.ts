@@ -119,10 +119,28 @@ export interface Database {
           updated_at?: string
         }
       }
+      admin_users: {
+        Row: {
+          id: string
+          email: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          created_at?: string
+        }
+      }
       orders: {
         Row: {
           id: string
           user_id: string | null
+          profile_id: string | null
           status: 'pending' | 'processing' | 'completed' | 'cancelled'
           total_amount: number
           shipping_address: Json | null
@@ -132,6 +150,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id?: string | null
+          profile_id?: string | null
           status?: 'pending' | 'processing' | 'completed' | 'cancelled'
           total_amount: number
           shipping_address?: Json | null
@@ -141,6 +160,7 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string | null
+          profile_id?: string | null
           status?: 'pending' | 'processing' | 'completed' | 'cancelled'
           total_amount?: number
           shipping_address?: Json | null
